@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from datetime import datetime
 import os
@@ -7,17 +7,19 @@ import json
 app = Flask(__name__)
 CORS(app)
 
-# File paths
+# Paths
 TRIP_FILE = "data/trips.json"
 DATA_FILE = "data/location_data.json"
+STATIC_FOLDER = "."
 
-# Ensure data folder and JSON files exist
+# Ensure data folder & files exist
 os.makedirs("data", exist_ok=True)
 for file in [TRIP_FILE, DATA_FILE]:
     if not os.path.exists(file):
         with open(file, 'w') as f:
             json.dump({}, f)
 
+# Utils
 def load_json(file):
     with open(file, "r") as f:
         return json.load(f)
@@ -26,6 +28,7 @@ def save_json(file, data):
     with open(file, "w") as f:
         json.dump(data, f, indent=2)
 
+# Routes
 @app.route("/")
 def home():
     return "✅ Flask Tracking Server is Running!"
@@ -33,6 +36,18 @@ def home():
 @app.route("/admin")
 def admin_ui():
     return send_file("admin.html")
+
+@app.route("/track.html")
+def track_page():
+    return send_file("track.html")
+
+@app.route("/manifest.json")
+def manifest():
+    return send_from_directory(STATIC_FOLDER, "manifest.json")
+
+@app.route("/sw.js")
+def service_worker():
+    return send_from_directory(STATIC_FOLDER, "sw.js")
 
 @app.route("/api/create_trip", methods=["POST"])
 def create_trip():
@@ -93,6 +108,7 @@ def get_trip_location(trip_id):
 def get_all():
     return jsonify(load_json(DATA_FILE))
 
+# Run app
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
