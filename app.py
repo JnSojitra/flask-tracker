@@ -4,18 +4,55 @@ import os
 import json
 
 app = Flask(__name__)
+TRIP_FILE = "data/trips.json"
 DATA_FILE = "data/location_data.json"
 os.makedirs("data", exist_ok=True)
 
-def load_data():
-    if not os.path.exists(DATA_FILE):
+def load_json(file):
+    if not os.path.exists(file):
         return {}
-    with open(DATA_FILE, "r") as f:
+    with open(file, "r") as f:
         return json.load(f)
 
-def save_data(data):
-    with open(DATA_FILE, "w") as f:
+def save_json(file, data):
+    with open(file, "w") as f:
         json.dump(data, f, indent=2)
+
+@app.route("/")
+def home():
+    return "✅ Flask Tracking Server is Running!"
+
+@app.route("/api/create_trip", methods=["POST"])
+def create_trip():
+    data = request.json
+    trip_id = data.get("tripId")
+    vehicle = data.get("vehicle")
+    driver = data.get("driver")
+    if not trip_id:
+        return jsonify({"error": "Trip ID is required"}), 400
+    trips = load_json(TRIP_FILE)
+    trips[trip_id] = {
+        "vehicle": vehicle,
+        "driver": driver,
+        "start_time": datetime.utcnow().isoformat(),
+        "active": True
+    }
+    save_json(TRIP_FILE, trips)
+    return jsonify({"status": "Trip created"}), 200
+
+@app.route("/api/stop_trip/<trip_id>", methods=["POST"])
+def stop_trip(trip_id):
+    trips = load_json(TRIP_FILE)
+    if trip_id in trips:
+        trips[trip_id]["active"] = False
+        trips[trip_id]["end_time"] = datetime.utcnow().isoformat()
+        save_json(TRIP_FILE, trips)
+        return jsonify({"status": "Trip ended"}), 200
+    return jsonify({"error": "Trip not found"}), 404
+
+@app.route("/api/trips", methods=["GET"])
+def get_trips():
+    return jsonify(load_json(TRIP_FILE))
 
 @app.route("/api/location", methods=["POST"])
 def receive_location():
@@ -29,24 +66,21 @@ def receive_location():
         "lng": data.get("lng"),
         "timestamp": data.get("timestamp", datetime.utcnow().isoformat())
     }
-
-    all_data = load_data()
+    all_data = load_json(DATA_FILE)
     all_data.setdefault(trip_id, []).append(loc_entry)
-    save_data(all_data)
+    save_json(DATA_FILE, all_data)
 
     return jsonify({"status": "Location saved"}), 200
 
 @app.route("/api/trip/<trip_id>", methods=["GET"])
 def get_trip_location(trip_id):
-    all_data = load_data()
+    all_data = load_json(DATA_FILE)
     return jsonify(all_data.get(trip_id, []))
 
 @app.route("/api/all", methods=["GET"])
 def get_all():
-    return jsonify(load_data())
+    return jsonify(load_json(DATA_FILE))
 
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-    app.run(debug=True)
