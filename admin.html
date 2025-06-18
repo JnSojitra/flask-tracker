@@ -1,0 +1,5 @@
+from flask import send_file
+
+@app.route("/admin")
+def admin_ui():
+    return send_file("admin.html")
