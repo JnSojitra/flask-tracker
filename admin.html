@@ -21,6 +21,8 @@
     <input type="text" id="vehicle" placeholder="Vehicle Number" class="form-control mb-2">
     <input type="text" id="driver" placeholder="Driver Name" class="form-control mb-2">
     <button class="btn btn-success" onclick="createTrip()">Create Trip</button>
+    <p class="mt-2"><strong>Share This Tracking Link with Driver:</strong></p>
+    <code id="driverLink">(Link will appear after trip creation)</code>
   </div>
 
   <div class="mb-3">
@@ -48,13 +50,19 @@
     let map, marker, path, intervalID;
 
     function createTrip() {
+      const tripId = document.getElementById('tripId').value;
       const data = {
-        tripId: document.getElementById('tripId').value,
+        tripId,
         vehicle: document.getElementById('vehicle').value,
         driver: document.getElementById('driver').value
       };
       axios.post(`${API_BASE}/create_trip`, data)
-        .then(res => alert('Trip created'))
+        .then(res => {
+          alert('Trip created');
+          const domain = window.location.origin;
+          const link = `${domain}/track.html?trip=${tripId}`;
+          document.getElementById('driverLink').innerText = link;
+        })
         .catch(err => alert('Error creating trip'));
     }
 
@@ -97,7 +105,7 @@
             const latest = data[data.length - 1];
             const latlng = [latest.lat, latest.lng];
             marker = L.marker(latlng).addTo(map).bindPopup(
-              `Latest Location:<br><strong>Lat:</strong> ${latest.lat}<br><strong>Lng:</strong> ${latest.lng}<br><strong>Time:</strong> ${latest.timestamp}`
+              `Lat: ${latest.lat}<br>Lng: ${latest.lng}<br>Time: ${latest.timestamp}`
             ).openPopup();
             path.setLatLngs(data.map(d => [d.lat, d.lng]));
             map.setView(latlng, 13);
