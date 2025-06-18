@@ -1,16 +1,24 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
+from flask_cors import CORS
 from datetime import datetime
 import os
 import json
 
 app = Flask(__name__)
+CORS(app)
+
+# File paths
 TRIP_FILE = "data/trips.json"
 DATA_FILE = "data/location_data.json"
+
+# Ensure data folder and JSON files exist
 os.makedirs("data", exist_ok=True)
+for file in [TRIP_FILE, DATA_FILE]:
+    if not os.path.exists(file):
+        with open(file, 'w') as f:
+            json.dump({}, f)
 
 def load_json(file):
-    if not os.path.exists(file):
-        return {}
     with open(file, "r") as f:
         return json.load(f)
 
@@ -21,6 +29,10 @@ def save_json(file, data):
 @app.route("/")
 def home():
     return "✅ Flask Tracking Server is Running!"
+
+@app.route("/admin")
+def admin_ui():
+    return send_file("admin.html")
 
 @app.route("/api/create_trip", methods=["POST"])
 def create_trip():
