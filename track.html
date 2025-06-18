@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Driver Live Location Sharing</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    .status { padding: 10px; background: #f0f0f0; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h2>Driver Location Sharing</h2>
+  <p id="tripDisplay"></p>
+  <button onclick="startTracking()">Start Location Sharing</button>
+  <div id="status" class="status">Status: Waiting...</div>
+
+  <script>
+    const tripId = new URLSearchParams(window.location.search).get('trip');
+    const API_URL = '/api/location';
+    document.getElementById("tripDisplay").innerText = `Trip ID: ${tripId}`;
+
+    let watchId;
+
+    function startTracking() {
+      if (!tripId) {
+        alert("Trip ID missing from URL");
+        return;
+      }
+
+      if (!navigator.geolocation) {
+        alert("Geolocation not supported");
+        return;
+      }
+
+      document.getElementById("status").innerText = "Status: Tracking started...";
+
+      watchId = navigator.geolocation.watchPosition(
+        pos => {
+          const coords = pos.coords;
+          const payload = {
+            tripId,
+            lat: coords.latitude,
+            lng: coords.longitude,
+            timestamp: new Date().toISOString()
+          };
+
+          axios.post(API_URL, payload)
+            .then(() => {
+              document.getElementById("status").innerText = `Status: Location sent at ${new Date().toLocaleTimeString()}`;
+            })
+            .catch(err => {
+              console.error(err);
+              document.getElementById("status").innerText = "Status: Error sending location";
+            });
+        },
+        err => {
+          console.error(err);
+          alert("Error accessing location: " + err.message);
+        },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
+      );
+    }
+  </script>
+</body>
+</html>
