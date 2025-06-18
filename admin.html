@@ -1,129 +1,79 @@
-**Title: Mobile-Based Live Location Tracking System for Transport Vehicles Without GPS**
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard - Live Tracker</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body class="p-4">
+  <h1 class="mb-4">Admin Dashboard: Live Vehicle Tracker</h1>
 
----
+  <div class="mb-3">
+    <h5>Create New Trip</h5>
+    <input type="text" id="tripId" placeholder="Trip ID" class="form-control mb-2">
+    <input type="text" id="vehicle" placeholder="Vehicle Number" class="form-control mb-2">
+    <input type="text" id="driver" placeholder="Driver Name" class="form-control mb-2">
+    <button class="btn btn-success" onclick="createTrip()">Create Trip</button>
+  </div>
 
-### 🌐 Overview
-To enable real-time location tracking of market-sourced vehicles (without GPS hardware), we'll design a web-based solution using the driver's smartphone GPS and internet connection. This system allows transport managers to track shipments live by sending a simple browser link to drivers.
+  <div class="mb-3">
+    <h5>Stop Trip</h5>
+    <input type="text" id="stopTripId" placeholder="Trip ID to stop" class="form-control mb-2">
+    <button class="btn btn-danger" onclick="stopTrip()">Stop Trip</button>
+  </div>
 
----
+  <div class="mb-3">
+    <h5>View All Trips</h5>
+    <button class="btn btn-primary" onclick="getTrips()">Get All Trips</button>
+    <pre id="tripList" class="mt-2 bg-light p-3"></pre>
+  </div>
 
-### 🚀 Key Features
-1. **Driver Tracking Link:** Unique tracking link per trip
-2. **One-Click Access:** Driver opens link and grants location permission
-3. **Live Location Updates:** Location pushed to central server every 5-10 seconds
-4. **Admin Dashboard:** View all active drivers and their real-time positions
-5. **Trip ID or Vehicle Number Mapping**
-6. **Auto Expiry:** Tracking link auto-disables after X hours
-7. **Mobile-Friendly UI**
-8. **WhatsApp/SMS Link Sharing**
-9. **Optional PWA (Progressive Web App) Support:** Allows persistent background tracking even if browser tab is closed
-10. **Clickable Dashboard Tools:** Admin UI includes buttons to:
-    - Create new trip
-    - View list of trips
-    - Track specific trip
-    - Stop trip / expire tracking link
+  <div class="mb-3">
+    <h5>Track Trip Location</h5>
+    <input type="text" id="trackTripId" placeholder="Trip ID" class="form-control mb-2">
+    <button class="btn btn-info" onclick="trackTrip()">Track Trip</button>
+    <pre id="trackData" class="mt-2 bg-light p-3"></pre>
+  </div>
 
----
+  <script>
+    const API_BASE = "/api";
 
-### 🔧 Updated app.py (Flask Backend)
-```python
-from flask import Flask, request, jsonify, send_file
-from datetime import datetime
-import os
-import json
-
-app = Flask(__name__)
-TRIP_FILE = "data/trips.json"
-DATA_FILE = "data/location_data.json"
-os.makedirs("data", exist_ok=True)
-
-def load_json(file):
-    if not os.path.exists(file):
-        return {}
-    with open(file, "r") as f:
-        return json.load(f)
-
-def save_json(file, data):
-    with open(file, "w") as f:
-        json.dump(data, f, indent=2)
-
-@app.route("/")
-def home():
-    return "✅ Flask Tracking Server is Running!"
-
-@app.route("/admin")
-def admin_ui():
-    return send_file("admin.html")
-
-@app.route("/api/create_trip", methods=["POST"])
-def create_trip():
-    data = request.json
-    trip_id = data.get("tripId")
-    vehicle = data.get("vehicle")
-    driver = data.get("driver")
-    if not trip_id:
-        return jsonify({"error": "Trip ID is required"}), 400
-    trips = load_json(TRIP_FILE)
-    trips[trip_id] = {
-        "vehicle": vehicle,
-        "driver": driver,
-        "start_time": datetime.utcnow().isoformat(),
-        "active": True
+    function createTrip() {
+      const data = {
+        tripId: document.getElementById('tripId').value,
+        vehicle: document.getElementById('vehicle').value,
+        driver: document.getElementById('driver').value
+      };
+      axios.post(`${API_BASE}/create_trip`, data)
+        .then(res => alert('Trip created'))
+        .catch(err => alert('Error creating trip'));
     }
-    save_json(TRIP_FILE, trips)
-    return jsonify({"status": "Trip created"}), 200
 
-@app.route("/api/stop_trip/<trip_id>", methods=["POST"])
-def stop_trip(trip_id):
-    trips = load_json(TRIP_FILE)
-    if trip_id in trips:
-        trips[trip_id]["active"] = False
-        trips[trip_id]["end_time"] = datetime.utcnow().isoformat()
-        save_json(TRIP_FILE, trips)
-        return jsonify({"status": "Trip ended"}), 200
-    return jsonify({"error": "Trip not found"}), 404
-
-@app.route("/api/trips", methods=["GET"])
-def get_trips():
-    return jsonify(load_json(TRIP_FILE))
-
-@app.route("/api/location", methods=["POST"])
-def receive_location():
-    data = request.json
-    trip_id = data.get("tripId")
-    if not trip_id:
-        return jsonify({"error": "Trip ID missing"}), 400
-
-    loc_entry = {
-        "lat": data.get("lat"),
-        "lng": data.get("lng"),
-        "timestamp": data.get("timestamp", datetime.utcnow().isoformat())
+    function stopTrip() {
+      const tripId = document.getElementById('stopTripId').value;
+      axios.post(`${API_BASE}/stop_trip/${tripId}`)
+        .then(res => alert('Trip stopped'))
+        .catch(err => alert('Error stopping trip'));
     }
-    all_data = load_json(DATA_FILE)
-    all_data.setdefault(trip_id, []).append(loc_entry)
-    save_json(DATA_FILE, all_data)
 
-    return jsonify({"status": "Location saved"}), 200
+    function getTrips() {
+      axios.get(`${API_BASE}/trips`)
+        .then(res => {
+          document.getElementById('tripList').textContent = JSON.stringify(res.data, null, 2);
+        })
+        .catch(err => alert('Error getting trips'));
+    }
 
-@app.route("/api/trip/<trip_id>", methods=["GET"])
-def get_trip_location(trip_id):
-    all_data = load_json(DATA_FILE)
-    return jsonify(all_data.get(trip_id, []))
-
-@app.route("/api/all", methods=["GET"])
-def get_all():
-    return jsonify(load_json(DATA_FILE))
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
-```
-
----
-
-### 📄 admin.html
-Stored in the companion document titled **Admin Dashboard Ui**. You can copy the entire code into a file named `admin.html` inside your Flask project.
-
----
-
-Would you like me to now add live Google Map visualization to the Admin Dashboard too?
+    function trackTrip() {
+      const tripId = document.getElementById('trackTripId').value;
+      axios.get(`${API_BASE}/trip/${tripId}`)
+        .then(res => {
+          document.getElementById('trackData').textContent = JSON.stringify(res.data, null, 2);
+        })
+        .catch(err => alert('Error tracking trip'));
+    }
+  </script>
+</body>
+</html>
